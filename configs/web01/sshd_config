@@ -1,0 +1,12 @@
+Port 22
+ListenAddress 10.10.10.11
+HostKey /home/sysadmin/data-center-lab/srv/web01/ssh_host_ed25519_key
+PidFile /run/sshd-web01.pid
+PermitRootLogin no
+PubkeyAuthentication yes
+PasswordAuthentication yes
+UsePAM no
+X11Forwarding no
+LogLevel VERBOSE
+AllowGroups devops sudo
+Subsystem sftp /usr/lib/openssh/sftp-server
