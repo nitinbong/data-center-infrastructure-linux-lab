@@ -1,0 +1,286 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+===================================================================
+ BASELINE SYSTEM SNAPSHOT - app01 (10.10.10.12)
+ captured 2026-09-06 23:35:53 UTC
+===================================================================
+
+
+########## CPU / LOAD ##########
+
+$ nproc
+1
+
+$ lscpu | head -20
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           52 bits physical, 57 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  1
+On-line CPU(s) list:                     0
+Vendor ID:                               GenuineIntel
+Model name:                              Intel(R) Xeon(R) Processor @ 2.10GHz
+CPU family:                              6
+Model:                                   207
+Thread(s) per core:                      1
+Core(s) per socket:                      1
+Socket(s):                               1
+Stepping:                                2
+BogoMIPS:                                4200.00
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp ibrs_enhanced fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 wbnoinvd arat avx512vbmi umip avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid cldemote movdiri movdir64b fsrm md_clear serialize tsxldtrk amx_bf16 avx512_fp16 amx_tile amx_int8 arch_capabilities
+Hypervisor vendor:                       KVM
+Virtualization type:                     full
+L1d cache:                               48 KiB (1 instance)
+L1i cache:                               32 KiB (1 instance)
+
+$ uptime
+ 23:35:53 up 12 min,  0 user,  load average: 0.00, 0.00, 0.00
+
+$ cat /proc/loadavg
+0.00 0.00 0.00 2/99 3361
+
+$ vmstat 1 3
+procs -----------memory---------- ---swap-- -----io---- -system-- -------cpu-------
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st gu
+ 1  0      0 3689956  14820 313732    0    0  1023  1778   66    1  2  2 97  0  0  0
+ 0  0      0 3689956  14828 313796    0    0     0    56   52  116  0  0 99  1  0  0
+ 0  0      0 3689956  14828 313796    0    0     0    96   44   79  0  0 100  0  0  0
+
+$ top -b -n 1 | head -15
+top - 23:35:55 up 12 min,  0 user,  load average: 0.00, 0.00, 0.00
+Tasks:  67 total,   1 running,  66 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.0 us,  0.0 sy,  0.0 ni,100.0 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem :   3997.8 total,   3602.7 free,    289.6 used,    320.9 buff/cache     
+MiB Swap:      0.0 total,      0.0 free,      0.0 used.   3708.2 avail Mem 
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+    1 root      20   0   30760   5208   3368 S   0.0   0.1   0:01.23 process_a+
+    2 root      20   0       0      0      0 S   0.0   0.0   0:00.00 kthreadd
+    3 root      20   0       0      0      0 S   0.0   0.0   0:00.00 pool_work+
+    4 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker/R+
+    5 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker/R+
+    6 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker/R+
+    7 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker/R+
+    8 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker/R+
+
+$ ps -eo pid,ppid,user,pcpu,pmem,rss,stat,comm --sort=-pcpu | head -10
+  PID  PPID USER     %CPU %MEM   RSS STAT COMMAND
+    1     0 root      0.1  0.1  5208 SLl  process_api
+  435     1 root      0.0  0.8 34684 Sl   rclone-filestor
+ 2673     2 root      0.0  0.0     0 I    kworker/u4:2-ext4-rsv-conversion
+ 2675     2 root      0.0  0.0     0 I    kworker/u4:5-ext4-rsv-conversion
+   11     2 root      0.0  0.0     0 I    kworker/0:1-events
+   15     2 root      0.0  0.0     0 I    rcu_preempt
+ 2674     2 root      0.0  0.0     0 I    kworker/u4:3-events_unbound
+   12     2 root      0.0  0.0     0 I    kworker/u4:0-ext4-rsv-conversion
+   28     2 root      0.0  0.0     0 I    kworker/u4:1-ext4-rsv-conversion
+
+
+########## MEMORY ##########
+
+$ free -h
+               total        used        free      shared  buff/cache   available
+Mem:           3.9Gi       289Mi       3.5Gi       5.2Mi       320Mi       3.6Gi
+Swap:             0B          0B          0B
+
+$ cat /proc/meminfo | head -12
+MemTotal:        4093780 kB
+MemFree:         3689200 kB
+MemAvailable:    3797240 kB
+Buffers:           14828 kB
+Cached:           292852 kB
+SwapCached:            0 kB
+Active:           121160 kB
+Inactive:         198080 kB
+Active(anon):         48 kB
+Inactive(anon):    16880 kB
+Active(file):     121112 kB
+Inactive(file):   181200 kB
+
+$ ps -eo pid,user,pmem,rss,comm --sort=-rss | head -8
+  PID USER     %MEM   RSS COMMAND
+  435 root      0.8 34684 rclone-filestor
+    1 root      0.1  5208 process_api
+ 2438 root      0.1  4304 sshd
+ 3377 root      0.1  4156 ps
+ 3352 root      0.0  3500 bash
+ 2487 www-data  0.0  3356 nginx
+ 2484 www-data  0.0  3308 nginx
+
+
+########## DISK CAPACITY (df) ##########
+
+$ df -h
+Filesystem                                                                         Size  Used Avail Use% Mounted on
+/dev/vda                                                                           252G  9.1G  9.5G  49% /
+tmpfs                                                                              4.0G     0  4.0G   0% /dev/shm
+/dev/loop0                                                                         224M   40K  206M   1% /srv/data
+/dev/loop5                                                                          86M   21M   60M  26% /srv/mirror/secondary
+/dev/loop6                                                                          86M   21M   60M  26% /srv/mirror/primary
+
+$ df -hT -x tmpfs -x devtmpfs
+Filesystem                                                                        Type         Size  Used Avail Use% Mounted on
+/dev/vda                                                                          ext4         252G  9.1G  9.5G  49% /
+/dev/loop0                                                                        ext4         224M   40K  206M   1% /srv/data
+/dev/loop5                                                                        ext4          86M   21M   60M  26% /srv/mirror/secondary
+/dev/loop6                                                                        ext4          86M   21M   60M  26% /srv/mirror/primary
+
+$ df -i | head -8
+Filesystem                                                                            Inodes  IUsed      IFree IUse% Mounted on
+/dev/vda                                                                            16777216 198316   16578900    2% /
+tmpfs                                                                                 511722     20     511702    1% /dev/shm
+/dev/loop0                                                                             65536     15      65521    1% /srv/data
+
+
+########## DISK USAGE (du) ##########
+
+$ du -sh /srv/*
+8.0K	/srv/appcontent
+36K	/srv/data
+4.0K	/srv/dropbox
+41M	/srv/mirror
+8.0K	/srv/secrets
+8.0K	/srv/webcontent
+
+$ du -h --max-depth=1 /srv/data | sort -rh
+36K	/srv/data
+16K	/srv/data/lost+found
+8.0K	/srv/data/logs
+4.0K	/srv/data/uploads
+4.0K	/srv/data/backups
+
+$ du -ah /srv/data | sort -rh | head -8
+36K	/srv/data
+16K	/srv/data/lost+found
+8.0K	/srv/data/logs
+4.0K	/srv/data/uploads
+4.0K	/srv/data/logs/health-history.csv
+4.0K	/srv/data/backups
+
+$ find /srv -xdev -type f -size +1M -exec ls -lh {} + | head -8
+
+
+########## BLOCK DEVICES / MOUNTS ##########
+
+$ losetup -a
+/dev/loop1: [65024]:574485 (/home/sysadmin/data-center-lab/disks/raid-a.img)
+/dev/loop6: [65024]:574519 (/home/sysadmin/data-center-lab/disks/mirror-spare.img)
+/dev/loop2: [65024]:574486 (/home/sysadmin/data-center-lab/disks/raid-b.img)
+/dev/loop0: [65024]:532481 (/home/sysadmin/data-center-lab/disks/data.img)
+/dev/loop5: [65024]:574518 (/home/sysadmin/data-center-lab/disks/mirror-b.img)
+/dev/loop3: [65024]:574487 (/home/sysadmin/data-center-lab/disks/raid-spare.img)
+
+$ findmnt -t ext4
+TARGET                  SOURCE               FSTYPE OPTIONS
+/                       /dev/vda             ext4   rw,relatime,resv_strict,resuid=65534,resgid=65534
+|-/run/netns            /dev/vda[/run/netns] ext4   rw,relatime,resv_strict,resuid=65534,resgid=65534
+|-/srv/data             /dev/loop0           ext4   rw,relatime
+|-/srv/mirror/secondary /dev/loop5           ext4   rw,relatime
+`-/srv/mirror/primary   /dev/loop6           ext4   rw,relatime
+
+$ blkid
+/dev/loop0: LABEL="LABDATA" UUID="1c4cc363-3c16-453e-bfae-e50f33dd5c73" BLOCK_SIZE="4096" TYPE="ext4"
+/dev/loop6: LABEL="MIRROR" UUID="31b82785-7a79-42ae-818f-74b3a7e05941" BLOCK_SIZE="4096" TYPE="ext4"
+/dev/loop5: LABEL="MIRROR" UUID="f37cd4f7-2454-4e36-814a-522d270fae25" BLOCK_SIZE="4096" TYPE="ext4"
+
+$ mount | grep -E 'loop|srv'
+/dev/loop0 on /srv/data type ext4 (rw,relatime)
+/dev/loop5 on /srv/mirror/secondary type ext4 (rw,relatime)
+/dev/loop6 on /srv/mirror/primary type ext4 (rw,relatime)
+
+
+########## NETWORK - IP ##########
+
+$ ip -brief addr show
+lo               UNKNOWN        127.0.0.1/8 
+veth-app@if6     UP             10.10.10.12/24 
+
+$ ip addr show
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+5: veth-app@if6: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 6e:c3:e6:10:b8:09 brd ff:ff:ff:ff:ff:ff link-netns web01
+    inet 10.10.10.12/24 scope global veth-app
+       valid_lft forever preferred_lft forever
+
+$ ip route show
+10.10.10.0/24 dev veth-app proto kernel scope link src 10.10.10.12 
+
+$ ip -s link show
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    RX:  bytes packets errors dropped  missed   mcast           
+           826      10      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+           826      10      0       0       0       0 
+5: veth-app@if6: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether 6e:c3:e6:10:b8:09 brd ff:ff:ff:ff:ff:ff link-netns web01
+    RX:  bytes packets errors dropped  missed   mcast           
+         22129     140      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+         23172     120      0       0       0       0 
+
+$ ip neigh show
+10.10.10.11 dev veth-app lladdr 56:10:cc:f6:32:61 REACHABLE 
+
+
+########## NETWORK - SOCKETS (ss) ##########
+
+$ ss -tulnp
+Netid State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess                                                 
+tcp   LISTEN 0      511      10.10.10.12:8080      0.0.0.0:*    users:(("nginx",pid=2487,fd=5),("nginx",pid=2486,fd=5))
+tcp   LISTEN 0      128      10.10.10.12:22        0.0.0.0:*    users:(("sshd",pid=2438,fd=4))                         
+
+$ ss -tnp state established
+Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+$ ss -s
+Total: 5
+TCP:   6 (estab 0, closed 4, orphaned 0, timewait 0)
+
+Transport Total     IP        IPv6
+RAW	  0         0         0        
+UDP	  0         0         0        
+TCP	  2         2         0        
+INET	  2         2         0        
+FRAG	  0         0         0        
+
+
+
+########## PROCESSES / SERVICES ##########
+
+$ ps -ef | grep -E 'nginx|sshd' | grep -v grep
+root      2436     1  0 23:25 ?        00:00:00 sshd: /usr/sbin/sshd -f /home/sysadmin/data-center-lab/srv/web01/sshd_config -E /home/sysadmin/data-center-lab/srv/web01/sshd.log [listener] 0 of 10-100 startups
+root      2438     1  0 23:25 ?        00:00:00 sshd: /usr/sbin/sshd -f /home/sysadmin/data-center-lab/srv/app01/sshd_config -E /home/sysadmin/data-center-lab/srv/app01/sshd.log [listener] 0 of 10-100 startups
+root      2483     1  0 23:25 ?        00:00:00 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+www-data  2484  2483  0 23:25 ?        00:00:00 nginx: worker process
+root      2486     1  0 23:25 ?        00:00:00 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/app01/nginx.conf
+www-data  2487  2486  0 23:25 ?        00:00:00 nginx: worker process
+root      3349     1  0 23:35 ?        00:00:00 /bin/sh -c cd /home/sysadmin/data-center-lab { echo "==================================================================="   echo " BASELINE SYSTEM SNAPSHOT - app01 (10.10.10.12)"   echo " captured $(date -u '+%Y-%m-%d %H:%M:%S UTC')"   echo "==================================================================="   timeout 200 ip netns exec app01 bash scripts/capture-baseline.sh } > outputs/04-baseline-app01.txt 2>&1 echo "app01 baseline: $(wc -l < outputs/04-baseline-app01.txt) lines"  { echo "==================================================================="   echo " SERVICE MANAGEMENT: systemd availability check on the lab host"   echo "==================================================================="   echo   echo "\$ ps -p 1 -o pid,comm="   ps -p 1 -o pid,comm=   echo   echo "\$ systemctl is-system-running"   timeout 10 systemctl is-system-running 2>&1   echo   echo "\$ systemctl status nginx"   timeout 10 systemctl status nginx 2>&1 | head -6   echo   echo "\$ journalctl -u nginx -n 5"   timeout 10 journalctl -u nginx -n 5 2>&1 | head -6   echo   echo "\$ ls /run/systemd/system"   ls /run/systemd/system 2>&1   echo   echo "-------------------------------------------------------------------"   echo "FINDING: PID 1 on this host is not systemd, so the journal and the"   echo "systemd service manager are offline. Service control in the lab is"   echo "therefore done with the unit-equivalent commands captured in"   echo "outputs/06-service-management.txt, and the full systemctl/journalctl"   echo "runbook lives in notes/systemd-runbook.md for VM deployment."   echo "-------------------------------------------------------------------" } > outputs/05-systemd-check.txt 2>&1 cat outputs/05-systemd-check.txt
+
+$ pgrep -a nginx
+2483 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+2484 nginx: worker process
+2486 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/app01/nginx.conf
+2487 nginx: worker process
+
+$ pgrep -a sshd
+2436 sshd: /usr/sbin/sshd -f /home/sysadmin/data-center-lab/srv/web01/sshd_config -E /home/sysadmin/data-center-lab/srv/web01/sshd.log [listener] 0 of 10-100 startups
+2438 sshd: /usr/sbin/sshd -f /home/sysadmin/data-center-lab/srv/app01/sshd_config -E /home/sysadmin/data-center-lab/srv/app01/sshd.log [listener] 0 of 10-100 startups
+
+
+########## OPEN FILES / LIMITS ##########
+
+$ ulimit -a
+timeout: failed to run command 'ulimit': No such file or directory
+
+$ cat /proc/sys/fs/file-nr
+135	0	407105

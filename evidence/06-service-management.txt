@@ -1,0 +1,97 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+
+----------------------------------------------------------
+1. STATUS   (systemd equivalent: systemctl status nginx)
+----------------------------------------------------------
+
+$ pgrep -a nginx
+2483 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+2484 nginx: worker process
+2486 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/app01/nginx.conf
+2487 nginx: worker process
+
+$ cat /run/nginx-web01.pid
+2483
+
+$ ss -tlnp sport = :80
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      511      10.10.10.11:80        0.0.0.0:*    users:(("nginx",pid=2484,fd=5),("nginx",pid=2483,fd=5))
+
+$ curl -s -o /dev/null -w 'HTTP %{http_code} in %{time_total}s\n' http://10.10.10.11/
+HTTP 200 in 0.001910s
+
+----------------------------------------------------------
+2. CONFIG VALIDATION   (nginx -t : always run before reload)
+----------------------------------------------------------
+
+$ nginx -t -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+nginx: the configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf syntax is ok
+nginx: configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf test is successful
+
+----------------------------------------------------------
+3. RELOAD - zero downtime, workers replaced   (systemctl reload nginx)
+----------------------------------------------------------
+worker PIDs before reload:
+2483 2484 2486 2487 
+
+$ nginx -s reload -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+2026/09/06 23:36:14 [notice] 3469#3469: signal process started
+worker PIDs after reload:
+2483 2486 2487 3470 
+
+$ curl -s http://10.10.10.11/health
+OK web01
+
+----------------------------------------------------------
+4. STOP   (systemctl stop nginx)
+----------------------------------------------------------
+
+$ nginx -s quit -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+2026/09/06 23:36:15 [notice] 3477#3477: signal process started
+
+$ pgrep -a nginx || echo '(no nginx processes - service stopped)'
+2483 [nginx] <defunct>
+2486 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/app01/nginx.conf
+2487 nginx: worker process
+
+$ ss -tlnp sport = :80 || true
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+$ curl -s -m 4 http://10.10.10.11/ ; echo "curl exit=$? (7 = connection refused, nothing listening)"
+curl exit=7 (7 = connection refused, nothing listening)
+
+----------------------------------------------------------
+5. START   (systemctl start nginx)
+----------------------------------------------------------
+
+$ nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+
+$ pgrep -a nginx
+2486 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/app01/nginx.conf
+2487 nginx: worker process
+3487 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+3488 nginx: worker process
+
+$ curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://10.10.10.11/
+HTTP 200
+
+----------------------------------------------------------
+6. LOGS   (journalctl -u nginx  /  tail of the access + error logs)
+----------------------------------------------------------
+
+$ tail -5 /home/sysadmin/data-center-lab/srv/web01/logs/access.log
+10.10.10.11 - - [06/Sep/2026:23:26:04 +0000] "GET / HTTP/1.1" 200 158 "-" "curl/8.5.0"
+10.10.10.11 - - [06/Sep/2026:23:26:04 +0000] "GET /health HTTP/1.1" 200 9 "-" "curl/8.5.0"
+10.10.10.11 - - [06/Sep/2026:23:36:14 +0000] "GET / HTTP/1.1" 200 158 "-" "curl/8.5.0"
+10.10.10.11 - - [06/Sep/2026:23:36:15 +0000] "GET /health HTTP/1.1" 200 9 "-" "curl/8.5.0"
+10.10.10.11 - - [06/Sep/2026:23:36:17 +0000] "GET / HTTP/1.1" 200 158 "-" "curl/8.5.0"
+
+$ tail -5 /home/sysadmin/data-center-lab/srv/web01/logs/error.log || echo '(error log empty - healthy)'
+2026/09/06 23:25:57 [emerg] 2481#2481: bind() to 10.10.10.11:80 failed (99: Cannot assign requested address)

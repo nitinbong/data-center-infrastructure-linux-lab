@@ -1,0 +1,37 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+===================================================================
+ SERVICE MANAGEMENT: systemd availability check on the lab host
+===================================================================
+
+$ ps -p 1 -o pid,comm=
+  PID 
+    1 process_api
+
+$ systemctl is-system-running
+offline
+
+$ systemctl status nginx
+System has not been booted with systemd as init system (PID 1). Can't operate.
+Failed to connect to bus: Host is down
+
+$ journalctl -u nginx -n 5
+No journal files were found.
+-- No entries --
+
+$ ls /run/systemd/system
+ls: cannot access '/run/systemd/system': No such file or directory
+
+-------------------------------------------------------------------
+FINDING: PID 1 on this host is not systemd, so the journal and the
+systemd service manager are offline. Service control in the lab is
+therefore done with the unit-equivalent commands captured in
+outputs/06-service-management.txt, and the full systemctl/journalctl
+runbook lives in notes/systemd-runbook.md for VM deployment.
+-------------------------------------------------------------------

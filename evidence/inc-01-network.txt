@@ -1,0 +1,110 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+
+########## 0. PRE-CHECK - service is healthy ##########
+
+[web01]$ ping -c 2 -W 2 10.10.10.12 | tail -2
+2 packets transmitted, 2 received, 0% packet loss, time 1017ms
+rtt min/avg/max/mdev = 0.046/0.130/0.214/0.084 ms
+
+[web01]$ curl -s -m 3 http://10.10.10.12:8080/health
+OK app01
+
+########## 1. FAULT INJECTION (change window: interface re-addressed) ##########
+app01 interface re-addressed to 10.10.20.12/24
+
+########## 2. SYMPTOM - what the monitoring and the users see ##########
+
+[web01]$ ping -c 3 -W 2 10.10.10.12; echo "ping exit=$?"
+PING 10.10.10.12 (10.10.10.12) 56(84) bytes of data.
+
+--- 10.10.10.12 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2028ms
+
+ping exit=1
+
+[web01]$ curl -s -m 4 -o /dev/null -w 'http_code=%{http_code}\n' http://10.10.10.12:8080/health; echo "curl exit=$?"
+http_code=000
+curl exit=28
+
+[web01 as sysadmin]$ timeout 8 ssh -o BatchMode=yes -o ConnectTimeout=4 10.10.10.12 hostname; echo "ssh exit=$?"
+ssh: connect to host 10.10.10.12 port 22: Connection timed out
+ssh exit=255
+
+########## 3. TRIAGE - work up the stack: link -> address -> route -> ARP -> socket ##########
+--- Layer 1/2: is the link up on our side? ---
+
+[web01]$ ip -brief link show veth-web
+veth-web@if5     UP             56:10:cc:f6:32:61 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+
+[web01]$ ip -s link show veth-web | tail -4
+    RX:  bytes packets errors dropped  missed   mcast           
+         28448     147      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+         29551     198      0       0       0       0 
+
+--- Layer 3: our own address and route ---
+
+[web01]$ ip -brief addr show
+lo               UNKNOWN        127.0.0.1/8 
+veth-web@if5     UP             10.10.10.11/24 
+
+[web01]$ ip route get 10.10.10.12
+10.10.10.12 dev veth-web src 10.10.10.11 uid 0 
+    cache 
+
+--- Layer 2 resolution: does the peer answer ARP? ---
+
+[web01]$ ip neigh flush all; ping -c1 -W2 10.10.10.12 >/dev/null 2>&1; ip neigh show
+10.10.10.12 dev veth-web INCOMPLETE 
+NOTE: state FAILED / INCOMPLETE for 10.10.10.12 means no host on this L2
+      segment owns that IP any more - the peer's address changed.
+
+--- Confirm from the peer side ---
+
+[app01]$ ip -brief addr show
+lo               UNKNOWN        127.0.0.1/8 
+veth-app@if6     UP             10.10.20.12/24 
+
+[app01]$ ip route show
+10.10.20.0/24 dev veth-app proto kernel scope link src 10.10.20.12 
+
+[app01]$ ss -tlnp
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess                                                 
+LISTEN 0      511      10.10.10.12:8080      0.0.0.0:*    users:(("nginx",pid=2487,fd=5),("nginx",pid=2486,fd=5))
+LISTEN 0      128      10.10.10.12:22        0.0.0.0:*    users:(("sshd",pid=2438,fd=4))                         
+
+ROOT CAUSE: app01 holds 10.10.20.12/24. web01 (10.10.10.11/24) has no
+route to 10.10.20.0/24, and nothing on the link answers for 10.10.10.12.
+Services on app01 never stopped - ss still shows both listeners bound.
+
+########## 4. FIX - restore the documented static address ##########
+restored 10.10.10.12/24 on app01
+
+[app01]$ ip -brief addr show
+lo               UNKNOWN        127.0.0.1/8 
+veth-app@if6     UP             10.10.10.12/24 
+
+########## 5. VERIFY - full service restoration ##########
+
+[web01]$ ping -c 3 -W 2 10.10.10.12 | tail -3
+--- 10.10.10.12 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2055ms
+rtt min/avg/max/mdev = 0.046/0.086/0.164/0.055 ms
+
+[web01]$ ip neigh show
+10.10.10.12 dev veth-web lladdr 6e:c3:e6:10:b8:09 REACHABLE 
+
+[web01]$ curl -s -m 4 http://10.10.10.12:8080/health
+OK app01
+
+[web01 as sysadmin]$ timeout 8 ssh -o BatchMode=yes -o ConnectTimeout=4 10.10.10.12 'echo SSH restored'
+SSH restored
+
+SERVICE RESTORED

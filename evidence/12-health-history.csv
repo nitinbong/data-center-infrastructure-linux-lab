@@ -1,0 +1,35 @@
+timestamp,node,ip,check,status,value,detail
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,load-average,OK,0.00,1/5/15m = 0.00 / 0.00 / 0.00 (0.00 per core)
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,cpu-utilisation,OK,0.0,0.0% busy over 1s sample
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,memory,OK,7.7,0.3G used of 3.9G (7.7%)
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,swap,OK,0,no swap configured
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,disk:/,OK,50,50% used (9.3G free of 252G)
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,disk:/srv/data,OK,1,1% used (206M free of 224M)
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,mount-readonly,OK,none,no unexpected read-only mounts
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,service:nginx,OK,running,8 process(es) running (pgrep)
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,service:sshd,OK,running,4 process(es) running (pgrep)
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,listening-ports,OK,22 80 ,TCP listeners: 22 80 
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,port:22,OK,listening,listener present on TCP/22
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,port:80,OK,listening,listener present on TCP/80
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,http:http://10.10.10.11/health,OK,200,responded HTTP 200
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,established-conns,OK,0,0 established TCP connections
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,peer:10.10.10.12,OK,up,"reachable, avg rtt 0.087 ms"
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,uid0-accounts,OK,root,root is the only UID 0 account
+2026-09-07T00:01:21.640844+00:00,web01,10.10.10.11,world-writable-etc,OK,none,no world-writable files under /etc
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,load-average,OK,0.00,1/5/15m = 0.00 / 0.00 / 0.00 (0.00 per core)
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,cpu-utilisation,OK,1.0,1.0% busy over 1s sample
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,memory,OK,7.7,0.3G used of 3.9G (7.7%)
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,swap,OK,0,no swap configured
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,disk:/,OK,50,50% used (9.3G free of 252G)
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,disk:/srv/data,OK,1,1% used (206M free of 224M)
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,mount-readonly,OK,none,no unexpected read-only mounts
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,service:nginx,OK,running,8 process(es) running (pgrep)
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,service:sshd,OK,running,6 process(es) running (pgrep)
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,listening-ports,OK,22 8080 ,TCP listeners: 22 8080 
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,port:22,OK,listening,listener present on TCP/22
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,port:8080,OK,listening,listener present on TCP/8080
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,http:http://10.10.10.12:8080/health,OK,200,responded HTTP 200
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,established-conns,OK,1,1 established TCP connections
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,peer:10.10.10.11,OK,up,"reachable, avg rtt 0.079 ms"
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,uid0-accounts,OK,root,root is the only UID 0 account
+2026-09-07T00:01:21.640844+00:00,app01,10.10.10.12,world-writable-etc,OK,none,no world-writable files under /etc

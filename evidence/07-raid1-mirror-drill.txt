@@ -1,0 +1,69 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+
+=== 1. Kernel md (RAID) subsystem check ===
+$ cat /proc/mdstat
+cat: /proc/mdstat: No such file or directory
+
+$ modprobe raid1
+modprobe: FATAL: Module raid1 not found in directory /lib/modules/6.18.44-fc-v24
+
+$ grep md /proc/devices
+(no md block device registered)
+
+$ ls /lib/modules/$(uname -r)/kernel/drivers/md
+ls: cannot access '/lib/modules/6.18.44-fc-v24/kernel/drivers/md': No such file or directory
+
+VERDICT: md driver absent -> 'mdadm --create' blocks forever on this host.
+         On a real Ubuntu VM the runbook in notes/raid1-mdadm-runbook.md applies verbatim.
+
+=== 2. Mirror drill - build the mirror ===
+member 0 (primary)  = /dev/loop4
+member 1 (secondary)= /dev/loop5
+hot spare           = /dev/loop6
+
+=== 3. Write data and synchronise both members ===
+$ ls -l /srv/mirror/primary/appdata
+total 20484
+-rw-r--r-- 1 root root 4194304 Sep  6 23:32 block-1.dat
+-rw-r--r-- 1 root root 4194304 Sep  6 23:32 block-2.dat
+-rw-r--r-- 1 root root 4194304 Sep  6 23:32 block-3.dat
+-rw-r--r-- 1 root root 4194304 Sep  6 23:32 block-4.dat
+-rw-r--r-- 1 root root 4194304 Sep  6 23:32 block-5.dat
+-rw-r--r-- 1 root root      15 Sep  6 23:32 manifest.txt
+
+$ md5sum of both members
+primary   checksum: affc1e9f0cfbbb1d194c4ae02cfc5a25
+secondary checksum: affc1e9f0cfbbb1d194c4ae02cfc5a25
+STATE: clean / in-sync (2 of 2 members active)
+
+=== 4. Simulate disk failure - yank member 0 ===
+$ umount /srv/mirror/primary && losetup -d /dev/loop4   # physical disk pulled
+$ losetup -a
+/dev/loop6: [65024]:574519 (/home/sysadmin/data-center-lab/disks/mirror-spare.img)
+/dev/loop5: [65024]:574518 (/home/sysadmin/data-center-lab/disks/mirror-b.img)
+
+STATE: DEGRADED (1 of 2 members active) - array is running on the survivor
+$ cat /srv/mirror/secondary/appdata/manifest.txt   # data still readable
+customer_db_v1
+$ df -h /srv/mirror/secondary
+/dev/loop5       86M   21M   60M  26% /srv/mirror/secondary
+
+=== 5. Rebuild - hot-add the spare and resync from the survivor ===
+resync source: /dev/loop5 (survivor)   target: /dev/loop6 (new member 0)
+rebuild wall time: 0.08s
+
+=== 6. Verify the rebuilt array ===
+rebuilt member checksum: affc1e9f0cfbbb1d194c4ae02cfc5a25
+survivor      checksum: affc1e9f0cfbbb1d194c4ae02cfc5a25
+STATE: clean / in-sync (2 of 2 members active) - REBUILD SUCCESSFUL
+
+$ findmnt | grep mirror
+|-/srv/mirror/primary         /dev/loop6                                                                        ext4        rw,relatime
+`-/srv/mirror/secondary       /dev/loop5                                                                        ext4        rw,relatime

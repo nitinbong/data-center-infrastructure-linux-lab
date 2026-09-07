@@ -1,0 +1,9 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. No command, result,
+# timestamp or value was altered.
+#
+Server listening on 10.10.10.11 port 22.
+Server listening on 10.10.10.11 port 22.
+Server listening on 10.10.10.11 port 22.

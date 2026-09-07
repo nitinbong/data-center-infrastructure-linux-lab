@@ -1,0 +1,91 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+===================================================================
+ 02 - USERS, GROUPS, PERMISSIONS, ACLs, FIREWALL
+ captured 2026-09-06 23:45:28 UTC
+===================================================================
+
+$ grep -E '^(sysadmin|deploy|webdev|junior):' /etc/passwd
+sysadmin:x:1001:1005::/home/sysadmin:/bin/bash
+deploy:x:1002:1006::/home/deploy:/bin/bash
+webdev:x:1003:1007::/home/webdev:/bin/bash
+junior:x:1004:1008::/home/junior:/bin/bash
+
+$ grep -E '^(webadmins|devops|appteam|sudo):' /etc/group
+sudo:x:27:ubuntu,sysadmin
+webadmins:x:1002:deploy,webdev
+devops:x:1003:sysadmin,deploy
+appteam:x:1004:junior
+
+$ id for each lab user
+uid=1001(sysadmin) gid=1005(sysadmin) groups=1005(sysadmin),27(sudo),1003(devops)
+uid=1002(deploy) gid=1006(deploy) groups=1006(deploy),1002(webadmins),1003(devops)
+uid=1003(webdev) gid=1007(webdev) groups=1007(webdev),1002(webadmins)
+uid=1004(junior) gid=1008(junior) groups=1008(junior),1004(appteam)
+
+$ ls -ld /srv/webcontent /srv/dropbox /srv/secrets /srv/data
+drwxrwsr-x  6 deploy   devops    4096 Sep  6 23:26 /srv/data
+drwxrwxrwt  2 root     root      4096 Sep  6 23:25 /srv/dropbox
+drwx------  2 sysadmin sysadmin  4096 Sep  6 23:25 /srv/secrets
+drwxrwsr-x+ 2 root     webadmins 4096 Sep  6 23:25 /srv/webcontent
+
+   2775 on /srv/webcontent = SGID, new files inherit group 'webadmins'
+   1777 on /srv/dropbox    = sticky bit, users cannot delete each other's files
+   0700 on /srv/secrets    = owner only
+
+$ getfacl /srv/webcontent
+# file: srv/webcontent
+# owner: root
+# group: webadmins
+# flags: -s-
+user::rwx
+group::rwx
+group:devops:rwx
+mask::rwx
+other::r-x
+default:user::rwx
+default:group::rwx
+default:group:webadmins:rwx
+default:mask::rwx
+default:other::r-x
+
+
+--- PROOF 1: SGID inheritance (webdev creates a file) ---
+-rw-rw-r--+ 1 webdev webadmins 0 Sep  6 23:45 /srv/webcontent/proof-sgid.html
+
+--- PROOF 2: 0700 denies a non-owner (junior reads secrets) ---
+cat: /srv/secrets/app.env: Permission denied
+   ^ expected: Permission denied
+
+--- PROOF 3: sudo membership ---
+$ sudo -l -U sysadmin
+
+User sysadmin may run the following commands on vm:
+    (ALL : ALL) ALL
+$ sudo -l -U junior
+User junior is not allowed to run sudo on vm.
+
+===================================================================
+ FIREWALL - app01 default-deny INPUT policy
+===================================================================
+$ ip netns exec app01 iptables -L INPUT -n -v --line-numbers
+Chain INPUT (policy DROP 4 packets, 240 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 ACCEPT     0    --  lo     *       0.0.0.0/0            0.0.0.0/0           
+2      305 54328 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+3       35  2940 ACCEPT     1    --  *      *       0.0.0.0/0            0.0.0.0/0            icmptype 8 limit: avg 5/sec burst 5
+4       11   660 ACCEPT     6    --  *      *       10.10.10.11          0.0.0.0/0            tcp dpt:22 ctstate NEW
+5        6   360 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8080
+6        4   240 LOG        0    --  *      *       0.0.0.0/0            0.0.0.0/0            LOG flags 0 level 4 prefix "FW-DROP-IN: "
+
+--- allowed: ICMP, SSH from 10.10.10.11 only, HTTP 8080 ---
+$ [web01] curl -s http://10.10.10.12:8080/health
+OK app01
+$ [web01] curl -m 4 http://10.10.10.12:9999/  (no rule -> silently dropped)
+curl exit=28 (28 = timeout, packet DROPped not REJECTed)

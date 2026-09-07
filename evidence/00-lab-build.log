@@ -1,0 +1,44 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. No command, result,
+# timestamp or value was altered.
+#
+### 1. packages
+### 2. network namespaces = the two servers
+PING 10.10.10.12 (10.10.10.12) 56(84) bytes of data.
+64 bytes from 10.10.10.12: icmp_seq=1 ttl=64 time=0.334 ms
+64 bytes from 10.10.10.12: icmp_seq=2 ttl=64 time=0.036 ms
+
+--- 10.10.10.12 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1005ms
+rtt min/avg/max/mdev = 0.036/0.185/0.334/0.149 ms
+### 3. users and groups
+### 4. permissions, SGID, sticky bit, ACLs
+### 5. storage: loop-backed ext4 data volume
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/loop1      224M   36K  206M   1% /srv/data
+### 6. sshd, one instance per server
+### 7. SSH trust: sysadmin key from web01 to app01
+SSH trust established
+### 8. nginx, one instance per server
+nginx: the configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf syntax is ok
+nginx: configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf test is successful
+nginx: the configuration file /home/sysadmin/data-center-lab/srv/app01/nginx.conf syntax is ok
+nginx: configuration file /home/sysadmin/data-center-lab/srv/app01/nginx.conf test is successful
+### 9. firewall: default-deny inbound on app01
+Chain INPUT (policy DROP 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     0    --  lo     *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    0     0 ACCEPT     1    --  *      *       0.0.0.0/0            0.0.0.0/0            icmptype 8 limit: avg 5/sec burst 5
+    0     0 ACCEPT     6    --  *      *       10.10.10.11          0.0.0.0/0            tcp dpt:22 ctstate NEW
+    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8080
+    0     0 LOG        0    --  *      *       0.0.0.0/0            0.0.0.0/0            LOG flags 0 level 4 prefix "FW-DROP-IN: "
+### 10. verify
+OK web01
+OK app01
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess                        
+LISTEN 0      128      10.10.10.11:22        0.0.0.0:*    users:(("sshd",pid=1198,fd=4))
+LISTEN 0      511      10.10.10.11:80        0.0.0.0:*    users:(("nginx",pid=1227,fd=5),("nginx",pid=1226,fd=5))
+LAB READY

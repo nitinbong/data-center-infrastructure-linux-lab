@@ -1,0 +1,101 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+########## web01 ##########
+===============================================================
+ SERVER HEALTH REPORT   2026-09-06 23:34:13 UTC
+===============================================================
+ Host    : vm (10.10.10.11)
+ Kernel  : 6.18.44-fc-v24   CPUs: 1
+ Uptime  : up 10 minutes
+
+CPU
+  OK    load-average           1/5/15m = 0.01 / 0.01 / 0.00 (0.01 per core)
+  OK    cpu-utilisation        1.0% busy over 1s sample
+
+MEMORY
+  OK    memory                 0.3G used of 3.9G (7.4%)
+  OK    swap                   no swap configured
+  ---- top memory consumers ----
+       %MEM   RSS COMMAND
+        0.8 34684 rclone-filestor
+        0.1  5204 process_api
+        0.1  4304 sshd
+
+STORAGE
+  OK    disk:/                 49% used (9.5G free of 252G)
+  OK    disk:/srv/data         1% used (206M free of 224M)
+  OK    disk:/srv/mirror/secondary 26% used (60M free of 86M)
+  OK    disk:/srv/mirror/primary 26% used (60M free of 86M)
+  OK    mount-readonly         no unexpected read-only mounts
+
+SERVICES
+  OK    service:nginx          4 process(es) running (pgrep)
+  OK    service:sshd           2 process(es) running (pgrep)
+
+NETWORK
+  OK    listening-ports        TCP listeners: 22 80 
+  OK    established-conns      0 established TCP connections
+  OK    peer:10.10.10.12       reachable, avg rtt 0.091 ms
+
+SECURITY
+  OK    empty-passwords        no accounts with empty passwords
+  OK    uid0-accounts          root is the only UID 0 account
+  OK    world-writable-etc     no world-writable files under /etc
+
+===============================================================
+ OVERALL: OK - all checks passed
+===============================================================
+exit=0
+
+########## app01 ##########
+===============================================================
+ SERVER HEALTH REPORT   2026-09-06 23:34:18 UTC
+===============================================================
+ Host    : vm (10.10.10.12)
+ Kernel  : 6.18.44-fc-v24   CPUs: 1
+ Uptime  : up 11 minutes
+
+CPU
+  OK    load-average           1/5/15m = 0.01 / 0.01 / 0.00 (0.01 per core)
+  OK    cpu-utilisation        0.0% busy over 1s sample
+
+MEMORY
+  OK    memory                 0.3G used of 3.9G (7.4%)
+  OK    swap                   no swap configured
+  ---- top memory consumers ----
+       %MEM   RSS COMMAND
+        0.8 34684 rclone-filestor
+        0.1  5204 process_api
+        0.1  4304 sshd
+
+STORAGE
+  OK    disk:/                 49% used (9.5G free of 252G)
+  OK    disk:/srv/data         1% used (206M free of 224M)
+  OK    disk:/srv/mirror/secondary 26% used (60M free of 86M)
+  OK    disk:/srv/mirror/primary 26% used (60M free of 86M)
+  OK    mount-readonly         no unexpected read-only mounts
+
+SERVICES
+  OK    service:nginx          4 process(es) running (pgrep)
+  OK    service:sshd           2 process(es) running (pgrep)
+
+NETWORK
+  OK    listening-ports        TCP listeners: 22 8080 
+  OK    established-conns      0 established TCP connections
+  OK    peer:10.10.10.11       reachable, avg rtt 0.071 ms
+
+SECURITY
+  OK    empty-passwords        no accounts with empty passwords
+  OK    uid0-accounts          root is the only UID 0 account
+  OK    world-writable-etc     no world-writable files under /etc
+
+===============================================================
+ OVERALL: OK - all checks passed
+===============================================================
+exit=0

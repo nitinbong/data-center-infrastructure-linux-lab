@@ -1,0 +1,123 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+
+########## 0. PRE-CHECK - key based login works ##########
+
+[web01 as sysadmin]$ ssh -o BatchMode=yes -o ConnectTimeout=4 10.10.10.12 'echo login OK as $(whoami)'
+login OK as sysadmin
+
+[app01 as root]$ ls -ld /home/sysadmin /home/sysadmin/.ssh /home/sysadmin/.ssh/authorized_keys
+drwxr-x--- 3 sysadmin sysadmin 4096 Sep  6 23:25 /home/sysadmin
+drwx------ 2 sysadmin sysadmin 4096 Sep  6 23:25 /home/sysadmin/.ssh
+-rw------- 1 sysadmin sysadmin   96 Sep  6 23:25 /home/sysadmin/.ssh/authorized_keys
+
+########## 1. FAULT INJECTION (home directory restored from backup with bad modes) ##########
+permissions after 'restore':
+drwxrwxr-x 3 sysadmin sysadmin 4096 Sep  6 23:25 /home/sysadmin
+drwxrwxrwx 2 sysadmin sysadmin 4096 Sep  6 23:25 /home/sysadmin/.ssh
+-rw-rw-rw- 1 sysadmin sysadmin   96 Sep  6 23:25 /home/sysadmin/.ssh/authorized_keys
+
+########## 2. SYMPTOM - automation and admins are locked out ##########
+
+[web01 as sysadmin]$ ssh -o BatchMode=yes -o ConnectTimeout=5 10.10.10.12 hostname; echo "ssh exit=$?"
+sysadmin@10.10.10.12: Permission denied (publickey,password,keyboard-interactive).
+ssh exit=255
+(The Python fleet monitor collects app01 over this same SSH path, so it
+ would now report app01 as UNKNOWN / collection failed.)
+
+########## 3. TRIAGE ##########
+--- 3a. Is this a network problem or an auth problem? ---
+
+[web01 as sysadmin]$ ping -c 2 -W 2 10.10.10.12 | tail -2
+2 packets transmitted, 2 received, 0% packet loss, time 1028ms
+rtt min/avg/max/mdev = 0.043/0.086/0.130/0.043 ms
+
+[web01 as sysadmin]$ nc -z -w 3 10.10.10.12 22 2>/dev/null && echo 'TCP 22 open' || timeout 4 sh -c 'echo > /dev/tcp/10.10.10.12/22' && echo 'TCP 22 open - transport fine, so this is authentication'
+TCP 22 open
+TCP 22 open - transport fine, so this is authentication
+
+--- 3b. Verbose client output: which key is offered, what does the server say? ---
+
+[web01 as sysadmin]$ ssh -vv -o BatchMode=yes -o ConnectTimeout=5 10.10.10.12 hostname 2>&1 | grep -Ei 'offering|Authentications that can continue|Permission denied|publickey|debug1: Next authentication' | head -8
+debug1: kex_ext_info_check_ver: publickey-hostbound@openssh.com=<0>
+debug1: Authentications that can continue: publickey,password,keyboard-interactive
+debug1: Next authentication method: publickey
+debug1: Offering public key: /home/sysadmin/.ssh/id_ed25519 ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+debug2: we sent a publickey packet, wait for reply
+debug1: Authentications that can continue: publickey,password,keyboard-interactive
+sysadmin@10.10.10.12: Permission denied (publickey,password,keyboard-interactive).
+
+--- 3c. Server side is authoritative: read the sshd log ---
+
+[app01 as root]$ tail -n +48 /home/sysadmin/data-center-lab/srv/app01/sshd.log | grep -Ei 'authentication refused|bad ownership|Failed|Connection closed' | head -6
+Authentication refused: bad ownership or modes for file /home/sysadmin/.ssh/authorized_keys
+Failed publickey for sysadmin from 10.10.10.11 port 59020 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+Connection closed by authenticating user sysadmin 10.10.10.11 port 59020 [preauth]
+kex_exchange_identification: Connection closed by remote host
+Connection closed by 10.10.10.11 port 59032
+Authentication refused: bad ownership or modes for file /home/sysadmin/.ssh/authorized_keys
+
+--- 3d. Confirm the effective sshd policy ---
+
+[app01 as root]$ /usr/sbin/sshd -T -f /home/sysadmin/data-center-lab/srv/app01/sshd_config | grep -Ei '^(strictmodes|pubkeyauthentication|authorizedkeysfile|allowgroups|permitrootlogin)'
+permitrootlogin no
+pubkeyauthentication yes
+strictmodes yes
+authorizedkeysfile .ssh/authorized_keys .ssh/authorized_keys2
+allowgroups devops
+allowgroups sudo
+
+[app01 as root]$ ls -ld /home/sysadmin /home/sysadmin/.ssh /home/sysadmin/.ssh/authorized_keys
+drwxrwxr-x 3 sysadmin sysadmin 4096 Sep  6 23:25 /home/sysadmin
+drwxrwxrwx 2 sysadmin sysadmin 4096 Sep  6 23:25 /home/sysadmin/.ssh
+-rw-rw-rw- 1 sysadmin sysadmin   96 Sep  6 23:25 /home/sysadmin/.ssh/authorized_keys
+
+[app01 as root]$ id sysadmin
+uid=1001(sysadmin) gid=1005(sysadmin) groups=1005(sysadmin),27(sudo),1003(devops)
+
+ROOT CAUSE: sshd runs with StrictModes=yes. It refuses to trust an
+authorized_keys file that is writable by anyone other than the owner,
+because another user could append their own key and impersonate this
+account. .ssh was 0777 and authorized_keys was 0666, so the key was
+ignored and the only remaining method was password auth, which the
+automation (BatchMode=yes) cannot use.
+
+########## 4. FIX - restore the required ownership and modes ##########
+
+[app01 as root]$ ls -ld /home/sysadmin /home/sysadmin/.ssh; ls -l /home/sysadmin/.ssh/
+drwxr-x--- 3 sysadmin sysadmin 4096 Sep  6 23:25 /home/sysadmin
+drwx------ 2 sysadmin sysadmin 4096 Sep  6 23:25 /home/sysadmin/.ssh
+total 16
+-rw------- 1 sysadmin sysadmin  96 Sep  6 23:25 authorized_keys
+-rw------- 1 sysadmin sysadmin 411 Sep  6 23:25 id_ed25519
+-rw-r--r-- 1 sysadmin sysadmin  96 Sep  6 23:25 id_ed25519.pub
+-rw-r--r-- 1 sysadmin sysadmin 142 Sep  6 23:25 known_hosts
+
+########## 5. VERIFY ##########
+
+[web01 as sysadmin]$ ssh -o BatchMode=yes -o ConnectTimeout=5 10.10.10.12 'echo login OK as $(whoami) from $SSH_CLIENT'
+login OK as sysadmin from 10.10.10.11 59040 22
+
+[app01 as root]$ tail -3 /home/sysadmin/data-center-lab/srv/app01/sshd.log | grep -i accepted
+
+--- monitoring path restored ---
+
+web01  (10.10.10.11)  role=web front-end  via=local
+  status: OK
+  checks: 16 OK / 0 WARN / 0 CRIT
+
+app01  (10.10.10.12)  role=application back-end  via=ssh
+  status: OK
+  checks: 13 OK / 0 WARN / 0 CRIT
+
+==========================================================================
+ FLEET: ALL SYSTEMS OK
+==========================================================================
+
+SERVICE RESTORED

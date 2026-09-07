@@ -1,0 +1,177 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+
+########## 0. PRE-CHECK - site healthy ##########
+
+[web01]$ curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://10.10.10.11/
+HTTP 200
+
+[web01]$ ls -ld /srv/webcontent; ls -l /srv/webcontent/index.html
+drwxrwsr-x+ 2 root webadmins 4096 Sep  6 23:45 /srv/webcontent
+-rw-rw-r--+ 1 root webadmins 132 Sep  6 23:55 /srv/webcontent/index.html
+
+########## 1. FAULT INJECTION ##########
+1a. an admin 'hardens' the document root by locking it down to its owner
+drwx--S---+ 2 root root 4096 Sep  6 23:45 /srv/webcontent
+
+1b. a page is published by deploy with a restrictive umask
+-rw-r-----+ 1 deploy deploy 28 Sep  6 23:57 /srv/webcontent/notice.html
+
+########## 2. SYMPTOM ##########
+
+[web01]$ curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://10.10.10.11/
+HTTP 403
+
+[web01]$ curl -s http://10.10.10.11/ | head -3
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+
+Health check:
+  CRIT  http:http://10.10.10.11/ responded HTTP 403
+
+===============================================================
+ OVERALL: CRITICAL - 1 issue(s)
+   - [CRIT] http:http://10.10.10.11/: responded HTTP 403
+===============================================================
+
+Content editor webdev also reports she can no longer edit the notice page:
+
+[web01]$ su webdev -c "echo '<h1>updated</h1>' > /srv/webcontent/notice.html"; echo "exit=$?"
+bash: line 1: /srv/webcontent/notice.html: Permission denied
+exit=1
+
+########## 3. TRIAGE - part A: the 403 ##########
+--- 3a. The service is running, so this is not an outage ---
+
+[web01]$ ss -tlnp sport = :80
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      511      10.10.10.11:80        0.0.0.0:*    users:(("nginx",pid=1227,fd=5),("nginx",pid=1226,fd=5))
+
+[web01]$ pgrep -a nginx | grep web01
+824 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+1226 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+A 403 means nginx answered. The request reached the server and was refused,
+so this is authorisation, not availability.
+
+--- 3b. The error log names the exact file and the exact errno ---
+
+[web01]$ tail -3 /home/sysadmin/data-center-lab/srv/web01/logs/error.log
+2026/09/06 23:57:51 [error] 1227#1227: *3 "/srv/webcontent/index.html" is forbidden (13: Permission denied), client: 10.10.10.11, server: web01, request: "GET / HTTP/1.1", host: "10.10.10.11"
+2026/09/06 23:57:51 [error] 1227#1227: *4 "/srv/webcontent/index.html" is forbidden (13: Permission denied), client: 10.10.10.11, server: web01, request: "GET / HTTP/1.1", host: "10.10.10.11"
+2026/09/06 23:57:52 [error] 1227#1227: *5 "/srv/webcontent/index.html" is forbidden (13: Permission denied), client: 10.10.10.11, server: web01, request: "GET / HTTP/1.1", host: "10.10.10.11"
+
+--- 3c. Which user does the worker actually run as? ---
+
+[web01]$ ps -o pid,user,cmd -C nginx | head -4
+  PID USER     CMD
+  824 root     nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+  825 www-data nginx: worker process
+  827 root     nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/app01/nginx.conf
+
+[web01]$ grep -m1 '^user' /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+user  www-data;
+
+[web01]$ id www-data
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+The master runs as root to bind port 80; the WORKERS drop to www-data and
+they are the ones that open files. Permissions must satisfy www-data.
+
+--- 3d. Reproduce the failure as that user - do not guess ---
+
+[web01]$ su -s /bin/sh www-data -c "ls /srv/webcontent"; echo "exit=$?"
+ls: cannot open directory '/srv/webcontent': Permission denied
+exit=2
+
+[web01]$ su -s /bin/sh www-data -c "cat /srv/webcontent/index.html >/dev/null"; echo "exit=$?"
+cat: /srv/webcontent/index.html: Permission denied
+exit=1
+
+--- 3e. Walk every component of the path ---
+
+[web01]$ namei -l /srv/webcontent/index.html
+f: /srv/webcontent/index.html
+drwxr-xr-x root root      /
+drwxr-xr-x root root      srv
+drwx--S--- root root      webcontent
+-rw-rw-r-- root webadmins index.html
+FINDING: /srv/webcontent is 0700 root:root. www-data is neither the owner nor in the
+group, so 'other' applies and other has no permissions at all - it cannot
+even traverse (x) into the directory, let alone read (r) the file.
+
+########## 4. TRIAGE - part B: the editor who cannot write ##########
+
+[web01]$ ls -l /srv/webcontent/notice.html
+-rw-r-----+ 1 deploy deploy 28 Sep  6 23:57 /srv/webcontent/notice.html
+
+[web01]$ id webdev
+uid=1003(webdev) gid=1007(webdev) groups=1007(webdev),1002(webadmins)
+FINDING: notice.html is 0640 deploy:deploy. webdev is in 'webadmins', not
+in 'deploy', so again only 'other' applies - and other has no write bit.
+The file was created without the shared group because it was chowned away
+from the SGID-inherited group.
+
+########## 5. FIX ##########
+5a. restore the document root to the documented state
+
+[web01]$ ls -ld /srv/webcontent
+drwxrwsr-x+ 2 root webadmins 4096 Sep  6 23:57 /srv/webcontent
+
+5b. put the published file back under the shared group
+
+[web01]$ ls -l /srv/webcontent/notice.html
+-rw-rw-r--+ 1 deploy webadmins 28 Sep  6 23:57 /srv/webcontent/notice.html
+
+NOT the fix: chmod -R 777 /srv/webcontent
+That would let every local account - including unprivileged service
+accounts - rewrite the served content, which turns a 403 into a defacement
+vector. The correct fix is group membership plus the SGID bit.
+
+########## 6. VERIFY ##########
+
+[web01]$ curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://10.10.10.11/
+HTTP 200
+
+[web01]$ curl -s http://10.10.10.11/ | head -2
+<!doctype html><html><head><title>web01</title></head>
+<body><h1>web01 - 10.10.10.11</h1><p>Nginx front-end node.</p></body></html>
+
+[web01]$ curl -s -o /dev/null -w 'notice.html HTTP %{http_code}\n' http://10.10.10.11/notice.html
+notice.html HTTP 200
+
+[web01]$ su -s /bin/sh www-data -c "cat /srv/webcontent/index.html >/dev/null"; echo "www-data read exit=$?"
+www-data read exit=0
+
+[web01]$ su webdev -c "echo '<h1>updated by webdev</h1>' > /srv/webcontent/notice.html"; echo "webdev write exit=$?"
+webdev write exit=0
+
+[web01]$ ls -l /srv/webcontent/notice.html; cat /srv/webcontent/notice.html
+-rw-rw-r--+ 1 deploy webadmins 27 Sep  6 23:57 /srv/webcontent/notice.html
+<h1>updated by webdev</h1>
+
+--- SGID still working: a new file inherits the shared group ---
+
+[web01]$ su webdev -c "touch /srv/webcontent/verify-sgid.html"; ls -l /srv/webcontent/verify-sgid.html
+-rw-rw-r--+ 1 webdev webadmins 0 Sep  6 23:57 /srv/webcontent/verify-sgid.html
+
+[web01]$ getfacl /srv/webcontent 2>/dev/null | head -8
+# file: srv/webcontent
+# owner: root
+# group: webadmins
+# flags: -s-
+user::rwx
+group::rwx
+group:devops:rwx
+mask::rwx
+
+===============================================================
+ OVERALL: OK - all checks passed
+===============================================================
+
+SERVICE RESTORED

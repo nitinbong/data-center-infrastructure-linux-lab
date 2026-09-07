@@ -1,0 +1,162 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+
+########## 0. PRE-CHECK ##########
+
+[web01]$ curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://10.10.10.11/
+HTTP 200
+config backed up before change (change-management step)
+
+########## 1. FAULT INJECTION - maintenance window on web01 ##########
+1a. engineer stops nginx to apply a config change
+  2026/09/06 23:42:36 [notice] 4993#4993: signal process started
+  nginx stopped, port 80 released
+
+1b. a stale deploy helper from a cron job starts up and grabs the now-free port
+  helper pid 4999 is now listening on 10.10.10.11:80
+
+1c. the config edit introduces a typo and points at a doc root that was never created
+5:events { worker_conections 512; }
+14:        root         /srv/webcontent-v2;
+
+########## 2. SYMPTOM - the site is down ##########
+
+[web01]$ curl -s -m 4 -o /dev/null -w 'HTTP %{http_code}\n' http://10.10.10.11/ ; echo "curl exit=$?"
+HTTP 000
+curl exit=28
+
+[web01]$ pgrep -a nginx | grep web01 || echo '(no nginx master for web01 - service is stopped)'
+(no nginx master for web01 - service is stopped)
+
+Health check reports the outage:
+  CRIT  http:http://10.10.10.11/ no HTTP response (connect failed or timed out)
+  CRIT  http:http://10.10.10.11/health no HTTP response (connect failed or timed out)
+
+===============================================================
+ OVERALL: CRITICAL - 2 issue(s)
+   - [CRIT] http:http://10.10.10.11/: no HTTP response (connect failed or timed out)
+   - [CRIT] http:http://10.10.10.11/health: no HTTP response (connect failed or timed out)
+===============================================================
+
+########## 3. TRIAGE ##########
+--- 3a. Try to start it and read the error (systemctl start nginx equivalent) ---
+
+[web01]$ nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf >/tmp/ngstart.log 2>&1 </dev/null; echo "start exit=$?"; cat /tmp/ngstart.log
+start exit=1
+2026/09/06 23:42:57 [emerg] 5093#5093: unknown directive "worker_conections" in /home/sysadmin/data-center-lab/srv/web01/nginx.conf:5
+
+--- 3b. Validate the configuration file (always do this first) ---
+
+[web01]$ nginx -t -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+2026/09/06 23:42:57 [emerg] 5097#5097: unknown directive "worker_conections" in /home/sysadmin/data-center-lab/srv/web01/nginx.conf:5
+nginx: configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf test failed
+FINDING 1: unknown directive 'worker_conections' at line 5 - typo in the change.
+
+--- 3c. Typo corrected, validate again and retry the start ---
+
+[web01]$ nginx -t -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+nginx: the configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf syntax is ok
+nginx: configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf test is successful
+
+[web01]$ nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf >/tmp/ngstart.log 2>&1 </dev/null; echo "start exit=$?"; cat /tmp/ngstart.log
+start exit=1
+nginx: [emerg] bind() to 10.10.10.11:80 failed (98: Address already in use)
+nginx: [emerg] bind() to 10.10.10.11:80 failed (98: Address already in use)
+nginx: [emerg] bind() to 10.10.10.11:80 failed (98: Address already in use)
+nginx: [emerg] bind() to 10.10.10.11:80 failed (98: Address already in use)
+nginx: [emerg] bind() to 10.10.10.11:80 failed (98: Address already in use)
+nginx: [emerg] still could not bind()
+FINDING 2: bind() to 10.10.10.11:80 failed (98: Address already in use).
+
+--- 3d. Who owns port 80? ---
+
+[web01]$ ss -tlnp sport = :80
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 3      5        10.10.10.11:80        0.0.0.0:*    users:(("python3",pid=4999,fd=3))
+
+[web01]$ ss -tlnp | grep ':80 '
+LISTEN 3      5        10.10.10.11:80        0.0.0.0:*    users:(("python3",pid=4999,fd=3))
+
+--- 3e. Identify the squatting process before killing anything ---
+
+[web01]$ ps -o pid,ppid,user,etime,cmd -p 4999
+  PID  PPID USER         ELAPSED CMD
+ 4999  4987 root           00:22 python3 -c  import socket,time,os s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1) s.bind(('10.10.10.11',80)); s.listen(5) open('/tmp/rogue.pid','w').write(str(os.getpid())) time.sleep(900)
+
+[web01]$ ls -l /proc/4999/cwd /proc/4999/exe 2>/dev/null | head -3
+lrwxrwxrwx 1 root root 0 Sep  6 23:42 /proc/4999/cwd -> /home/sysadmin/data-center-lab
+lrwxrwxrwx 1 root root 0 Sep  6 23:42 /proc/4999/exe -> /usr/bin/python3.12
+
+--- 3f. Recent error log ---
+
+[web01]$ tail -6 /home/sysadmin/data-center-lab/srv/web01/logs/error.log
+2026/09/06 23:42:57 [emerg] 5104#5104: bind() to 10.10.10.11:80 failed (98: Address already in use)
+2026/09/06 23:42:57 [emerg] 5104#5104: bind() to 10.10.10.11:80 failed (98: Address already in use)
+2026/09/06 23:42:57 [emerg] 5104#5104: bind() to 10.10.10.11:80 failed (98: Address already in use)
+2026/09/06 23:42:57 [emerg] 5104#5104: bind() to 10.10.10.11:80 failed (98: Address already in use)
+2026/09/06 23:42:57 [emerg] 5104#5104: bind() to 10.10.10.11:80 failed (98: Address already in use)
+2026/09/06 23:42:57 [emerg] 5104#5104: still could not bind()
+
+########## 4. FIX ##########
+4a. terminate the rogue listener that is holding TCP/80
+
+[web01]$ ss -tlnp sport = :80 || echo '(port 80 now free)'
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+4b. start nginx
+
+[web01]$ nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf >/tmp/ngstart.log 2>&1 </dev/null; echo "start exit=$?"; cat /tmp/ngstart.log
+start exit=0
+
+[web01]$ pgrep -a nginx | grep web01
+5132 nginx: master process nginx -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+
+4c. site now answers - but with the wrong document root
+
+[web01]$ curl -s -m 4 -o /dev/null -w 'HTTP %{http_code}\n' http://10.10.10.11/
+HTTP 404
+
+[web01]$ tail -2 /home/sysadmin/data-center-lab/srv/web01/logs/error.log
+2026/09/06 23:42:57 [emerg] 5104#5104: bind() to 10.10.10.11:80 failed (98: Address already in use)
+2026/09/06 23:42:57 [emerg] 5104#5104: still could not bind()
+FINDING 3: root points at /srv/webcontent-v2 which does not exist -> 404.
+
+[web01]$ ls -ld /srv/webcontent-v2 2>&1 || true
+ls: cannot access '/srv/webcontent-v2': No such file or directory
+
+4d. restore the correct document root and reload
+
+[web01]$ nginx -t -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+nginx: the configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf syntax is ok
+nginx: configuration file /home/sysadmin/data-center-lab/srv/web01/nginx.conf test is successful
+
+[web01]$ nginx -s reload -c /home/sysadmin/data-center-lab/srv/web01/nginx.conf
+2026/09/06 23:43:01 [notice] 5155#5155: signal process started
+
+########## 5. VERIFY ##########
+
+[web01]$ curl -s -o /dev/null -w 'HTTP %{http_code} in %{time_total}s\n' http://10.10.10.11/
+HTTP 200 in 0.000443s
+
+[web01]$ curl -s http://10.10.10.11/health
+OK web01
+
+[web01]$ curl -s http://10.10.10.11/ | head -2
+<!doctype html><html><head><title>web01</title></head>
+<body><h1>web01 - 10.10.10.11</h1><p>Nginx front-end node. Data Center Ops Home Lab.</p></body></html>
+
+[web01]$ ss -tlnp sport = :80
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      511      10.10.10.11:80        0.0.0.0:*    users:(("nginx",pid=5156,fd=5),("nginx",pid=5132,fd=5))
+
+===============================================================
+ OVERALL: OK - all checks passed
+===============================================================
+
+SERVICE RESTORED

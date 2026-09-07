@@ -1,0 +1,57 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+==========================================================================
+ FLEET HEALTH DASHBOARD                          2026-09-07 00:01:21 UTC
+==========================================================================
+
+web01  (10.10.10.11)  role=web front-end  via=local
+  status: OK
+  checks: 17 OK / 0 WARN / 0 CRIT
+    OK    load-average               1/5/15m = 0.00 / 0.00 / 0.00 (0.00 per core)
+    OK    cpu-utilisation            0.0% busy over 1s sample
+    OK    memory                     0.3G used of 3.9G (7.7%)
+    OK    swap                       no swap configured
+    OK    disk:/                     50% used (9.3G free of 252G)
+    OK    disk:/srv/data             1% used (206M free of 224M)
+    OK    mount-readonly             no unexpected read-only mounts
+    OK    service:nginx              8 process(es) running (pgrep)
+    OK    service:sshd               4 process(es) running (pgrep)
+    OK    listening-ports            TCP listeners: 22 80 
+    OK    port:22                    listener present on TCP/22
+    OK    port:80                    listener present on TCP/80
+    OK    http:http://10.10.10.11/health responded HTTP 200
+    OK    established-conns          0 established TCP connections
+    OK    peer:10.10.10.12           reachable, avg rtt 0.087 ms
+    OK    uid0-accounts              root is the only UID 0 account
+    OK    world-writable-etc         no world-writable files under /etc
+
+app01  (10.10.10.12)  role=application back-end  via=ssh
+  status: OK
+  checks: 17 OK / 0 WARN / 0 CRIT
+    OK    load-average               1/5/15m = 0.00 / 0.00 / 0.00 (0.00 per core)
+    OK    cpu-utilisation            1.0% busy over 1s sample
+    OK    memory                     0.3G used of 3.9G (7.7%)
+    OK    swap                       no swap configured
+    OK    disk:/                     50% used (9.3G free of 252G)
+    OK    disk:/srv/data             1% used (206M free of 224M)
+    OK    mount-readonly             no unexpected read-only mounts
+    OK    service:nginx              8 process(es) running (pgrep)
+    OK    service:sshd               6 process(es) running (pgrep)
+    OK    listening-ports            TCP listeners: 22 8080 
+    OK    port:22                    listener present on TCP/22
+    OK    port:8080                  listener present on TCP/8080
+    OK    http:http://10.10.10.12:8080/health responded HTTP 200
+    OK    established-conns          1 established TCP connections
+    OK    peer:10.10.10.11           reachable, avg rtt 0.079 ms
+    OK    uid0-accounts              root is the only UID 0 account
+    OK    world-writable-etc         no world-writable files under /etc
+
+==========================================================================
+ FLEET: ALL SYSTEMS OK
+==========================================================================

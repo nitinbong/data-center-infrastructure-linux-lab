@@ -1,0 +1,188 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+
+########## 0. PRE-CHECK - volume healthy ##########
+
+[web01]$ df -h /srv/data
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/loop1      224M   36K  206M   1% /srv/data
+
+[web01]$ du -sh /srv/data/*
+4.0K	/srv/data/backups
+4.0K	/srv/data/logs
+16K	/srv/data/lost+found
+4.0K	/srv/data/uploads
+
+########## 1. FAULT INJECTION ##########
+1a. an application starts writing a log and keeps the file open
+  writer pid 2192 holding /srv/data/logs/app.log open
+
+1b. an overnight bulk export lands on the same volume
+98+0 records out
+102760448 bytes (103 MB, 98 MiB) copied, 0.433466 s, 237 MB/s
+
+########## 2. SYMPTOM - the volume is full and writes fail ##########
+
+[web01]$ df -h /srv/data
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/loop1      224M  219M     0 100% /srv/data
+As the application user (deploy):
+
+[web01]$ su deploy -c "echo 'new record' > /srv/data/uploads/deploy-write-test.csv"; echo "write exit=$?"
+bash: line 1: echo: write error: No space left on device
+write exit=1
+
+[web01]$ su deploy -c "dd if=/dev/zero of=/srv/data/uploads/probe.tmp bs=1M count=2" 2>&1 | head -3
+dd: error writing '/srv/data/uploads/probe.tmp': No space left on device
+1+0 records in
+0+0 records out
+
+As root, the same write still succeeds:
+
+[web01]$ echo 'root can still write' > /srv/data/uploads/root-probe.txt; echo "write exit=$?"
+write exit=0
+NOTE: ext4 reserves 5% of blocks for root (tune2fs -m). Unprivileged
+      services hit ENOSPC first, which is exactly the point of the reserve:
+      root keeps enough room to log in and clean up.
+
+Health check:
+  CRIT  disk:/srv/data         100% used (0 free of 224M) on /dev/loop1
+
+===============================================================
+ OVERALL: CRITICAL - 1 issue(s)
+   - [CRIT] disk:/srv/data: 100% used (0 free of 224M) on /dev/loop1
+===============================================================
+
+########## 3. TRIAGE ##########
+--- 3a. Is it space or inodes? Both present as ENOSPC ---
+
+[web01]$ df -h /srv/data
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/loop1      224M  219M     0 100% /srv/data
+
+[web01]$ df -i /srv/data
+Filesystem     Inodes IUsed IFree IUse% Mounted on
+/dev/loop1      65536    19 65517    1% /srv/data
+FINDING: blocks are 100% used, inodes are nearly empty -> a few large
+         files, not millions of small ones.
+
+--- 3b. Walk down the tree to the offenders ---
+
+[web01]$ du -h --max-depth=1 /srv/data | sort -rh
+219M	/srv/data
+121M	/srv/data/logs
+99M	/srv/data/backups
+16K	/srv/data/lost+found
+8.0K	/srv/data/uploads
+
+[web01]$ du -ah /srv/data | sort -rh | head -6
+219M	/srv/data
+121M	/srv/data/logs
+120M	/srv/data/logs/app.log
+99M	/srv/data/backups/bulk-export.tar
+99M	/srv/data/backups
+16K	/srv/data/lost+found
+
+[web01]$ find /srv/data -xdev -type f -size +50M -exec ls -lh {} + 2>/dev/null
+-rw-r--r-- 1 root devops  98M Sep  6 23:57 /srv/data/backups/bulk-export.tar
+-rw-r--r-- 1 root devops 120M Sep  6 23:57 /srv/data/logs/app.log
+
+--- 3c. Check for recently grown files ---
+
+[web01]$ find /srv/data -xdev -type f -mmin -10 -size +10M -exec ls -lh {} + 2>/dev/null
+-rw-r--r-- 1 root devops  98M Sep  6 23:57 /srv/data/backups/bulk-export.tar
+-rw-r--r-- 1 root devops 120M Sep  6 23:57 /srv/data/logs/app.log
+
+########## 4. FIX - first pass: remove the bulk export ##########
+
+[web01]$ rm -f /srv/data/backups/bulk-export.tar
+
+[web01]$ df -h /srv/data
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/loop1      224M  121M   86M  59% /srv/data
+Some space reclaimed, but the volume is still heavily used.
+
+########## 5. THE TRAP - deleting the log frees nothing ##########
+The obvious next step is to delete the large log file:
+
+[web01]$ ls -lh /srv/data/logs/app.log
+-rw-r--r-- 1 root devops 120M Sep  6 23:57 /srv/data/logs/app.log
+
+[web01]$ rm -f /srv/data/logs/app.log
+
+[web01]$ du -sh /srv/data
+36K	/srv/data
+
+[web01]$ df -h /srv/data
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/loop1      224M  121M   86M  59% /srv/data
+
+PROBLEM: du now reports almost nothing, but df still reports the space as
+used. du walks directory entries; df asks the filesystem. When a file is
+unlinked while a process still holds it open, the directory entry is gone
+but the inode and its blocks are not released until the last descriptor
+closes. du cannot see it; df can.
+
+########## 6. FIND THE PROCESS HOLDING THE DELETED FILE ##########
+--- 6a. Scan /proc for deleted files still held open ---
+
+[web01]$ for p in /proc/[0-9]*; do ls -l $p/fd 2>/dev/null | grep deleted; done
+  pid=2192  l-wx------ 1 root root 64 Sep  6 23:57 3 -> /srv/data/logs/app.log (deleted)
+
+--- 6b. lsof is not installed; on a production host:  lsof +L1  ---
+        (lists open files with a link count of 0 = deleted but held)
+
+--- 6c. Identify the holder before acting on it ---
+
+[web01]$ ps -o pid,ppid,user,etime,rss,cmd -p 2192
+  PID  PPID USER         ELAPSED   RSS CMD
+ 2192  2184 root           00:08  9460 python3 -c  import os,time f=open('/srv/data/logs/app.log','wb') f.write(b'x'*(120*1024*1024)); f.flush(); os.fsync(f.fileno()) open('/tmp/holder.pid','w').write(str(os.getpid())) time.sleep(1200)          # process stays alive, file descriptor stays open 
+
+[web01]$ ls -l /proc/2192/fd | grep deleted
+l-wx------ 1 root root 64 Sep  6 23:57 3 -> /srv/data/logs/app.log (deleted)
+
+[web01]$ ls -l /proc/2192/exe
+lrwxrwxrwx 1 root root 0 Sep  6 23:57 /proc/2192/exe -> /usr/bin/python3.12
+
+########## 7. RECLAIM THE SPACE ##########
+Two safe options: truncate the descriptor in place (keeps the process
+running), or restart the process so it closes the descriptor.
+
+Option A - truncate through the descriptor, no restart required:
+  descriptor: /proc/2192/fd/3
+
+[web01]$ : > /proc/2192/fd/3; echo "truncate exit=$?"
+truncate exit=0
+
+[web01]$ df -h /srv/data
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/loop1      224M   40K  206M   1% /srv/data
+
+########## 8. VERIFY ##########
+
+[web01]$ df -h /srv/data
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/loop1      224M   40K  206M   1% /srv/data
+
+[web01]$ df -i /srv/data
+Filesystem     Inodes IUsed IFree IUse% Mounted on
+/dev/loop1      65536    18 65518    1% /srv/data
+
+[web01]$ du -sh /srv/data
+36K	/srv/data
+
+[web01]$ su deploy -c "echo 'new record' > /srv/data/uploads/deploy-write-test.csv"; echo "write exit=$?"; cat /srv/data/uploads/deploy-write-test.csv
+write exit=0
+new record
+
+===============================================================
+ OVERALL: OK - all checks passed
+===============================================================
+
+SERVICE RESTORED

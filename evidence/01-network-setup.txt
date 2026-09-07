@@ -1,0 +1,75 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. Unrelated mount lines
+# belonging to the capture host (network filesystems outside the lab) were
+# removed from df/mount output. No command, result, timestamp or value
+# produced by the lab itself was altered.
+#
+===================================================================
+ 01 - NETWORK BUILD & CONNECTIVITY VERIFICATION
+ captured 2026-09-06 23:45:22 UTC
+===================================================================
+
+--- Host inventory ---
+web01  10.10.10.11/24   web front-end   (nginx :80, sshd :22)
+app01  10.10.10.12/24   app back-end    (nginx :8080, sshd :22)
+link   veth-web <-> veth-app  point-to-point on 10.10.10.0/24
+
+$ ip netns list
+web01 (id: 0)
+app01 (id: 1)
+
+$ ip netns exec web01 ip -brief addr show
+lo               UNKNOWN        127.0.0.1/8 
+veth-web@if5     UP             10.10.10.11/24 
+
+$ ip netns exec app01 ip -brief addr show
+lo               UNKNOWN        127.0.0.1/8 
+veth-app@if6     UP             10.10.10.12/24 
+
+$ ip netns exec web01 ip route show
+10.10.10.0/24 dev veth-web proto kernel scope link src 10.10.10.11 
+
+$ ip netns exec app01 ip route show
+10.10.10.0/24 dev veth-app proto kernel scope link src 10.10.10.12 
+
+$ ip netns exec web01 ping -c 4 10.10.10.12
+PING 10.10.10.12 (10.10.10.12) 56(84) bytes of data.
+64 bytes from 10.10.10.12: icmp_seq=1 ttl=64 time=0.060 ms
+64 bytes from 10.10.10.12: icmp_seq=2 ttl=64 time=0.051 ms
+64 bytes from 10.10.10.12: icmp_seq=3 ttl=64 time=0.049 ms
+64 bytes from 10.10.10.12: icmp_seq=4 ttl=64 time=0.043 ms
+
+--- 10.10.10.12 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3058ms
+rtt min/avg/max/mdev = 0.043/0.050/0.060/0.006 ms
+
+$ ip netns exec app01 ping -c 3 10.10.10.11
+PING 10.10.10.11 (10.10.10.11) 56(84) bytes of data.
+64 bytes from 10.10.10.11: icmp_seq=1 ttl=64 time=0.137 ms
+64 bytes from 10.10.10.11: icmp_seq=2 ttl=64 time=0.040 ms
+64 bytes from 10.10.10.11: icmp_seq=3 ttl=64 time=0.039 ms
+
+--- 10.10.10.11 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2044ms
+rtt min/avg/max/mdev = 0.039/0.072/0.137/0.045 ms
+
+$ ip netns exec web01 ip neigh show
+10.10.10.12 dev veth-web lladdr 6e:c3:e6:10:b8:09 DELAY 
+
+$ ip netns exec web01 ss -tlnp
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess                                                 
+LISTEN 0      511      10.10.10.11:80        0.0.0.0:*    users:(("nginx",pid=5156,fd=5),("nginx",pid=5132,fd=5))
+LISTEN 0      128      10.10.10.11:22        0.0.0.0:*    users:(("sshd",pid=2436,fd=4))                         
+
+$ ip netns exec app01 ss -tlnp
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess                                                 
+LISTEN 0      511      10.10.10.12:8080      0.0.0.0:*    users:(("nginx",pid=2487,fd=5),("nginx",pid=2486,fd=5))
+LISTEN 0      128      10.10.10.12:22        0.0.0.0:*    users:(("sshd",pid=2438,fd=4))                         
+
+$ ip netns exec web01 curl -s http://10.10.10.12:8080/health   (cross-host HTTP)
+OK app01
+
+$ ssh web01 -> app01 (key based)
+connected as sysadmin from 10.10.10.11 34564 22

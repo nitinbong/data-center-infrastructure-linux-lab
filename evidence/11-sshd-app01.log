@@ -1,0 +1,112 @@
+# Captured command output from the lab host. Unedited except for one
+# documented substitution: the absolute lab directory path was rewritten
+# from the original build location to /home/sysadmin/data-center-lab so the
+# repository contains no environment-specific paths. No command, result,
+# timestamp or value was altered.
+#
+Server listening on 10.10.10.12 port 22.
+Connection from 10.10.10.11 port 53354 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 53354 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 53354 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 2461
+Starting session: command for sysadmin from 10.10.10.11 port 53354 id 0
+Received disconnect from 10.10.10.11 port 53354:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 53354
+Connection from 10.10.10.11 port 39182 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 39182 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 39182 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 2758
+Starting session: command for sysadmin from 10.10.10.11 port 39182 id 0
+Received disconnect from 10.10.10.11 port 39182:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 39182
+Connection from 10.10.10.11 port 52244 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 52244 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 52244 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 3180
+Starting session: command for sysadmin from 10.10.10.11 port 52244 id 0
+Received disconnect from 10.10.10.11 port 52244:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 52244
+Connection from 10.10.10.11 port 46828 on 10.10.10.12 port 22 rdomain ""
+Connection closed by 10.10.10.11 port 46828 [preauth]
+Connection from 10.10.10.11 port 41118 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 41118 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 41118 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 3650
+Starting session: command for sysadmin from 10.10.10.11 port 41118 id 0
+Received disconnect from 10.10.10.11 port 41118:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 41118
+Connection from 10.10.10.11 port 59006 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 59006 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 59006 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 3669
+Starting session: command for sysadmin from 10.10.10.11 port 59006 id 0
+Received disconnect from 10.10.10.11 port 59006:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 59006
+Connection from 10.10.10.11 port 59020 on 10.10.10.12 port 22 rdomain ""
+Authentication refused: bad ownership or modes for file /home/sysadmin/.ssh/authorized_keys
+Failed publickey for sysadmin from 10.10.10.11 port 59020 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+Connection closed by authenticating user sysadmin 10.10.10.11 port 59020 [preauth]
+Connection from 10.10.10.11 port 59032 on 10.10.10.12 port 22 rdomain ""
+kex_exchange_identification: Connection closed by remote host
+Connection closed by 10.10.10.11 port 59032
+Connection from 10.10.10.11 port 59036 on 10.10.10.12 port 22 rdomain ""
+Authentication refused: bad ownership or modes for file /home/sysadmin/.ssh/authorized_keys
+Failed publickey for sysadmin from 10.10.10.11 port 59036 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+Connection closed by authenticating user sysadmin 10.10.10.11 port 59036 [preauth]
+Connection from 10.10.10.11 port 59040 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 59040 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 59040 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 3741
+Starting session: command for sysadmin from 10.10.10.11 port 59040 id 0
+Received disconnect from 10.10.10.11 port 59040:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 59040
+Connection from 10.10.10.11 port 59046 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 59046 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 59046 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 3828
+Starting session: command for sysadmin from 10.10.10.11 port 59046 id 0
+Received disconnect from 10.10.10.11 port 59046:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 59046
+Connection from 10.10.10.11 port 34564 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 34564 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 34564 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 5288
+Starting session: command for sysadmin from 10.10.10.11 port 34564 id 0
+Received disconnect from 10.10.10.11 port 34564:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 34564
+Server listening on 10.10.10.12 port 22.
+Connection from 10.10.10.11 port 51366 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 51366 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 51366 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 813
+Starting session: command for sysadmin from 10.10.10.11 port 51366 id 0
+Received disconnect from 10.10.10.11 port 51366:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 51366
+Server listening on 10.10.10.12 port 22.
+Connection from 10.10.10.11 port 51840 on 10.10.10.12 port 22 rdomain ""
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Postponed publickey for sysadmin from 10.10.10.11 port 51840 ssh2 [preauth]
+Accepted key ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk found at /home/sysadmin/.ssh/authorized_keys:1
+Accepted publickey for sysadmin from 10.10.10.11 port 51840 ssh2: ED25519 SHA256:KjMEDKjxZNNF3iY6yFJr8IDP2k3FVoDzmqFKRZIphIk
+User child is on pid 1215
+Starting session: command for sysadmin from 10.10.10.11 port 51840 id 0
+Received disconnect from 10.10.10.11 port 51840:11: disconnected by user
+Disconnected from user sysadmin 10.10.10.11 port 51840
